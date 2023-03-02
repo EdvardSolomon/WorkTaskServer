@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User{
+  id Int @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  email String @unique
+  hash String?
+  firstName String?
+  lastName String?
+  role String @default("user")
+  
+  files File[]
+  folders Folder[]
+@@map("users")
+}
+
+model File {
+    id Int @id @default(autoincrement())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    fileName String
+    view String
+    userId Int
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    folderId Int
+    folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+@@map("files")
+}
+
+model Folder {
+    id Int @id @default(autoincrement())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    folderName String
+    view String
+    userId Int
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+    parentId  Int?
+    parent    Folder?  @relation("ParentChild", fields: [parentId], references: [id], onDelete: Cascade)
+
+    children  Folder[] @relation("ParentChild")
+
+    files File[]
+@@map("folders")
+}
