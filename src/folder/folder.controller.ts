@@ -3,11 +3,18 @@ import { UseGuards } from '@nestjs/common/decorators/core/use-guards.decorator';
 import { Body, Req } from '@nestjs/common/decorators/http/route-params.decorator';
 import { GetUser } from '../auth/decorator';
 import { JwtGuard } from '../auth/guard';
-import { CreateFolderDto } from './dto';
+import { CreateFolderDto, FolderDto } from './dto';
 import { EditFolderDto } from './dto/edit-folder.dto';
 import { FolderService } from './folder.service';
 import { Request } from 'express';
+import { ApiTags, ApiBearerAuth, ApiUnauthorizedResponse, ApiOperation, ApiCreatedResponse, ApiOkResponse, ApiNoContentResponse } from '@nestjs/swagger';
 
+@ApiTags("Folder")
+@ApiBearerAuth('JWT')
+@ApiUnauthorizedResponse({
+    description: 'Unauthorized',
+    //type: Error401,
+})
 
 @UseGuards(JwtGuard)
 
@@ -15,16 +22,12 @@ import { Request } from 'express';
 export class FolderController {
     constructor(private folderService: FolderService){}
 
-    @Get() 
-    getFolders(@Req() request: Request) {
-
-        console.log(request);
-
-        return this.folderService.getFolders()
-    }
-
     @Post()
-
+    @ApiOperation({ summary: 'Create folder' })
+    @ApiCreatedResponse({
+        description: 'Folder created',
+        type: FolderDto,
+    })
     createFolder(
         @GetUser('id') userId: number,
         @Body() dto: CreateFolderDto
@@ -32,8 +35,25 @@ export class FolderController {
         return this.folderService.createFolder(userId, dto);
     }
 
-    @Get(':id')
+    @Get()
+    @ApiOperation({ summary: 'Get all folders' })
+    @ApiOkResponse({
+        description: 'Get all folders',
+        type: [FolderDto],
+    })
+    getFolders(@Req() request: Request) {
 
+        console.log(request);
+
+        return this.folderService.getFolders()
+    }
+
+    @Get('/:id')
+    @ApiOperation({ summary: 'Get folder by id' })
+    @ApiOkResponse({
+        description: 'Get folder by id',
+        type: FolderDto,
+    })
     getFolderById(
         @Param('id', ParseIntPipe) folderId: number,
         ){
@@ -41,15 +61,23 @@ export class FolderController {
         }
 
     @Get('/author/:id')
-
+    @ApiOperation({ summary: 'Get all folders by user' })
+    @ApiOkResponse({
+        description: 'Get all folders by user',
+        type: [FolderDto],
+    })
     getFoldersByAuthorId(
         @Param('id', ParseIntPipe) userId: number,
         ){
             return this.folderService.getFoldersByAuthorId(userId)
         } 
 
-    @Patch(':id')
-
+    @Patch('/:id')
+    @ApiOperation({ summary: 'Edit folder' })
+    @ApiOkResponse({
+        description: 'return folder',
+        type: FolderDto,
+    })
     editFolder(
         @Param('id', ParseIntPipe) folderId: number,
         @Body() dto: EditFolderDto,
@@ -58,11 +86,16 @@ export class FolderController {
     }
 
     @HttpCode(HttpStatus.NO_CONTENT)
-    @Delete(':id')
-
+    @Delete('/:id')
+    @ApiOperation({ summary: 'Delete folder' })
+    @ApiNoContentResponse({
+        description:'Deleted successfully'
+    })
+    
     deleteFolderById(
         @Param('id', ParseIntPipe) folderId: number,
+        @GetUser('id') userId: number
     ){
-        return this.folderService.deleteFolderById(folderId)
+        return this.folderService.deleteFolderById(userId, folderId);
     }
 }

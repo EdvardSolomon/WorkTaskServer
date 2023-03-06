@@ -9,7 +9,7 @@ export class JwtStrategy extends PassportStrategy(Strategy,'jwt') {
     constructor(config: ConfigService,private prisma: PrismaService){
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-            secretOrKey: config.get("JWT_SECRET"),
+            secretOrKey: config.get("AT_JWT_SECRET"),
         });
     }
 
@@ -22,6 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy,'jwt') {
         })
 
         delete user.hash;
+        delete user.hashedRt;
 
         return user;
     }

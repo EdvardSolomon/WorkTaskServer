@@ -56,7 +56,7 @@ export class AuthService {
             },
         });
 
-        return this.signToken(user.id, user.email);
+        return this.getTokens(user.id, user.email);
     } catch(error) {
         if(error instanceof Prisma.PrismaClientKnownRequestError) {
             if(error.code === 'P2002') {
@@ -81,23 +81,73 @@ export class AuthService {
 
         if(!pwMatches) throw new ForbiddenException("Password incorect");
 
-        return this.signToken(user.id, user.email);
+        return this.getTokens(user.id, user.email);
     }
 
-    async signToken(userId: number, email: string,): Promise<{access_token: string}> {
+    async getTokens(userId: number, email: string,) {
         const payload = {
             sub: userId,
             email,
         }
-        const secret = this.config.get('JWT_SECRET');
 
-        const token = await this.jwt.signAsync(payload, {
-            expiresIn: '15m',
-            secret: secret,
-        });
+        const [at, rt] = await Promise.all([
+            this.jwt.signAsync(payload, {
+              secret: this.config.get<string>('AT_JWT_SECRET'),
+              expiresIn: '15m',
+            }),
+            this.jwt.signAsync(payload, {
+              secret: this.config.get<string>('RT_JWT_SECRET'),
+              expiresIn: '7d',
+            }),
+          ]);
 
         return {
-            access_token: token,
-        };
+            access_token: at,
+            refresh_token: rt,
+          };
     }
+
+    async logout(userId: number) {
+        await this.prisma.user.updateMany({
+          where: {
+            id: userId,
+            hashedRt: {
+              not: null,
+            },
+          },
+          data: {
+            hashedRt: null,
+          },
+        });
+        return true;
+      }
+    
+      async refreshTokens(userId: number, rt: string) {
+        const user = await this.prisma.user.findUnique({
+          where: {
+            id: userId,
+          },
+        });
+        if (!user || !user.hashedRt) throw new ForbiddenException('Access Denied');
+    
+        const rtMatches = await argon.verify(user.hashedRt, rt);
+        if (!rtMatches) throw new ForbiddenException('Access Denied');
+    
+        const tokens = await this.getTokens(user.id, user.email);
+        await this.updateRtHash(user.id, tokens.refresh_token);
+    
+        return tokens;
+      }
+
+      async updateRtHash(userId: number, rt: string) {
+        const hash = await argon.hash(rt);
+        await this.prisma.user.update({
+          where: {
+            id: userId,
+          },
+          data: {
+            hashedRt: hash,
+          },
+        });
+      }
 }

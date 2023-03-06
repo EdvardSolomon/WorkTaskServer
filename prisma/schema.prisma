@@ -19,9 +19,13 @@ model User{
   firstName String?
   lastName String?
   role String @default("user")
-  
+  hashedRt String?
   files File[]
   folders Folder[]
+  allowToViewFolders ViewersOnFolder[] 
+  allowToEditFolders EditorsOnFolder[]
+  allowToViewFiles ViewersOnFile[] 
+  allowToEditFiles EditorsOnFile[]
 @@map("users")
 }
 
@@ -29,12 +33,18 @@ model File {
     id Int @id @default(autoincrement())
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
+    originalName String 
     fileName String
+    destination String
+    path String
+    size Int
     view String
     userId Int
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     folderId Int
     folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+    viewers ViewersOnFile[] 
+    editors EditorsOnFile[] 
 @@map("files")
 }
 
@@ -48,9 +58,45 @@ model Folder {
     user User @relation(fields: [userId], references: [id], onDelete: Cascade)
     parentId  Int?
     parent    Folder?  @relation("ParentChild", fields: [parentId], references: [id], onDelete: Cascade)
-
     children  Folder[] @relation("ParentChild")
-
     files File[]
+    viewers ViewersOnFolder[]
+    editors EditorsOnFolder[]
 @@map("folders")
+}
+
+model EditorsOnFolder {
+  id Int @id @default(autoincrement())
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  createdAt DateTime @default(now())
+}
+
+model ViewersOnFolder {
+  id Int @id @default(autoincrement())
+  folder Folder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  folderId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  createdAt DateTime @default(now())
+}
+
+model EditorsOnFile {
+  id Int @id @default(autoincrement())
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  createdAt DateTime @default(now())
+}
+
+model ViewersOnFile {
+  id Int @id @default(autoincrement())
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  fileId Int
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId Int
+  createdAt DateTime @default(now())
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateFolderDto } from './dto';
 import { EditFolderDto } from './dto';
+import { existsSync, mkdirSync, rmdirSync } from 'fs';
 
 @Injectable()
 export class FolderService {
@@ -37,6 +38,12 @@ export class FolderService {
             }
           });
 
+          const folderId = post.id;
+          const dir = `./uploads/${userId}/${folderId}`;
+          if (!existsSync(dir)) {
+              mkdirSync(dir, { recursive: true });
+          }
+
         return post;
     }
 
@@ -53,7 +60,13 @@ export class FolderService {
 
     }
     
-    async deleteFolderById(folderId: number) {
+    async deleteFolderById(userId: number, folderId: number) {
+
+
+        const dir = `./uploads/${userId}/${folderId}`;
+        if (existsSync(dir)) {
+            rmdirSync(dir, { recursive: true });
+        }
 
         await this.prisma.folder.delete({
             where: {

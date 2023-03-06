@@ -12,4 +12,3 @@ import { FolderModule } from './folder/folder.module';
   FileModule, FolderModule, PrismaModule, UserModule,PassportModule.register({ session: true })],
 })
 export class AppModule {}
- 
