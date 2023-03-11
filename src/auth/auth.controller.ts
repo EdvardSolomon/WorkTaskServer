@@ -1,8 +1,7 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Get, UseGuards, Session, ParseIntPipe } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post, Get, UseGuards, Session, Res, Req, HttpException } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { AuthDto } from "./dto";
-import { GoogleAuthGuard } from "./guard/google.guard";
-import { ApiTags, ApiCreatedResponse, ApiOperation, ApiAcceptedResponse, ApiUnauthorizedResponse, ApiBadRequestResponse, ApiOkResponse, ApiMovedPermanentlyResponse } from "@nestjs/swagger";
+import { ApiTags, ApiCreatedResponse, ApiOperation, ApiUnauthorizedResponse, ApiBadRequestResponse, ApiOkResponse } from "@nestjs/swagger";
 import { GetUser } from "./decorator";
 import { RtGuard, JwtGuard } from "./guard";
 
@@ -13,31 +12,26 @@ export class AuthController {
     constructor(private authService: AuthService){}
 
 
-    @Get('google/login')
+    @Post('google/login')
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Google Authentication' })
-    @UseGuards(GoogleAuthGuard)
 
-    handleLogin(){
-        return { msg:'Google Authentication' }
-    }
+    async handleLogin(@Body("token") token : string){
 
-    @Get('google/redirect')
-    @HttpCode(HttpStatus.OK)
-    @ApiOperation({ summary: 'Google redirect' })
-    @ApiOkResponse({
-        description: "Successfully Google Authentication",
-    })
-    @UseGuards(GoogleAuthGuard)
+        console.log(token);
 
-    async handleRedirect(@Session() session: Record<string, any>){
-
-        const userId = session.passport.user.id;
-        const email = session.passport.user.email;
-
-        const tokens = await this.authService.getTokens(userId,email);
-        this.authService.updateRtHash(userId, tokens.refresh_token);
-        return tokens;
+        const result = await this.authService.loginGoogleUser(token);
+          if (result) {
+            return result;
+          } else {
+            throw new HttpException(
+              {
+                status: HttpStatus.UNAUTHORIZED,
+                error: 'Error while logging in with google',
+              },
+              HttpStatus.UNAUTHORIZED,
+            );
+          }
     }
 
     @UseGuards(RtGuard)
@@ -52,8 +46,9 @@ export class AuthController {
     @HttpCode(HttpStatus.OK)
     refreshTokens(
       @GetUser('sub') userId: number,
-      @GetUser('refreshToken') refreshToken: string,
+      @Body('refresh_token') refreshToken: string,
     ) {
+        console.log(refreshToken);
       return this.authService.refreshTokens(userId, refreshToken);
     }
 

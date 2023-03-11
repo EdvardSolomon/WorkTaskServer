@@ -2,6 +2,7 @@ import { Injectable, ForbiddenException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AuthDto, GoogleAuthDto } from "./dto";
+import { OAuth2Client } from 'google-auth-library';
 import * as argon from 'argon2';
 import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config/dist";
@@ -11,11 +12,16 @@ export class AuthService {
     constructor(
         private prisma: PrismaService,
         private jwt: JwtService,
-        private config: ConfigService
-        ){}
+        private config: ConfigService,
+       private client: OAuth2Client
+        ){
+          const clientId = this.config.get("GOOGLE_CLIENT_ID");
+          const clientSecret = this.config.get("GOOGLE_SECRET");
+          this.client = new OAuth2Client(clientId,clientSecret);
+        }
 
 
-    async validateUser(details: GoogleAuthDto){
+    async validateUser(details: any){
 
         const user = await this.prisma.user.findUnique({
             where: {
@@ -42,6 +48,20 @@ export class AuthService {
 
         return newUser;
 
+    }
+
+    async loginGoogleUser(token : string){
+
+    const tokenInfo = await this.client.verifyIdToken({
+      idToken: token,
+      audience: this.config.get("GOOGLE_CLIENT_ID"),
+    });
+    const payload = tokenInfo.getPayload();
+      const user = await this.validateUser(payload);
+      if (user) {
+        return this.getTokens(user.id, user.email);
+      }
+      return undefined;
     }
 
     async signup(dto : AuthDto){

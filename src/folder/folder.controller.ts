@@ -60,7 +60,7 @@ export class FolderController {
             return this.folderService.getFolderById(folderId)
         }
 
-    @Get('/author/:id')
+    @Get('/user/:id')
     @ApiOperation({ summary: 'Get all folders by user' })
     @ApiOkResponse({
         description: 'Get all folders by user',
