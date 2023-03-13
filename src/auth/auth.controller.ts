@@ -1,4 +1,5 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Get, UseGuards, Session, Res, Req, HttpException } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post, UseGuards, Res, HttpException, Req, Get } from "@nestjs/common";
+import { Response, Request } from 'express';
 import { AuthService } from "./auth.service";
 import { AuthDto } from "./dto";
 import { ApiTags, ApiCreatedResponse, ApiOperation, ApiUnauthorizedResponse, ApiBadRequestResponse, ApiOkResponse } from "@nestjs/swagger";
@@ -16,13 +17,15 @@ export class AuthController {
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Google Authentication' })
 
-    async handleLogin(@Body("token") token : string){
-
-        console.log(token);
+    async handleLogin(
+      @Res({ passthrough: true }) response: Response,
+      @Body("token") token : string,
+      ){
 
         const result = await this.authService.loginGoogleUser(token);
           if (result) {
-            return result;
+            response.cookie('refreshToken', result.tokens.refresh_token, {maxAge: 900000, httpOnly: true});
+            return {token : result.tokens.access_token, user : result.user};
           } else {
             throw new HttpException(
               {
@@ -35,7 +38,7 @@ export class AuthController {
     }
 
     @UseGuards(RtGuard)
-    @Post('refresh')
+    @Get('refresh')
     @ApiOperation({ summary: 'Refresh tokens' })
     @ApiUnauthorizedResponse({
         description: "Unauthorized"
@@ -44,12 +47,22 @@ export class AuthController {
         description: 'Refreshed tokens successfully',
     })
     @HttpCode(HttpStatus.OK)
-    refreshTokens(
-      @GetUser('sub') userId: number,
-      @Body('refresh_token') refreshToken: string,
+    async refreshTokens(
+      @GetUser('sub') userId: number, 
+      @Req() request: Request,
+      @Res({ passthrough: true }) response: Response,
     ) {
-        console.log(refreshToken);
-      return this.authService.refreshTokens(userId, refreshToken);
+      try {
+        const { refreshToken }= request.cookies;
+        const result = await this.authService.refreshTokens(userId, refreshToken);
+        response.cookie("refreshToken",  result.tokens.refresh_token, {maxAge: 900000, httpOnly: true})
+        return {token : result.tokens.access_token, user : result.user};
+      } catch (error) {
+        console.log("error");
+        console.log(error);
+        return response.statusCode = 403;
+      }
+
     }
 
     @Post('signup')

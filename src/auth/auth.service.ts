@@ -1,7 +1,7 @@
 import { Injectable, ForbiddenException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
-import { AuthDto, GoogleAuthDto } from "./dto";
+import { AuthDto } from "./dto";
 import { OAuth2Client } from 'google-auth-library';
 import * as argon from 'argon2';
 import { JwtService } from "@nestjs/jwt";
@@ -22,7 +22,6 @@ export class AuthService {
 
 
     async validateUser(details: any){
-
         const user = await this.prisma.user.findUnique({
             where: {
                 email: details.email,
@@ -33,8 +32,8 @@ export class AuthService {
         const newUser = await this.prisma.user.create({
             data:{
                 email: details.email,
-                firstName: details.firstName,
-              lastName: details.lastName,
+                firstName: details.given_name,
+              lastName: details.family_name,
             }
         });
 
@@ -59,7 +58,9 @@ export class AuthService {
     const payload = tokenInfo.getPayload();
       const user = await this.validateUser(payload);
       if (user) {
-        return this.getTokens(user.id, user.email);
+        const tokens = await this.getTokens(user.id, user.email);
+        await this.updateRtHash(user.id, tokens.refresh_token);
+        return {tokens, user}
       }
       return undefined;
     }
@@ -113,11 +114,11 @@ export class AuthService {
         const [at, rt] = await Promise.all([
             this.jwt.signAsync(payload, {
               secret: this.config.get<string>('AT_JWT_SECRET'),
-              expiresIn: '15m',
+              expiresIn: '15s',
             }),
             this.jwt.signAsync(payload, {
               secret: this.config.get<string>('RT_JWT_SECRET'),
-              expiresIn: '7d',
+              expiresIn: '15m',
             }),
           ]);
 
@@ -143,7 +144,7 @@ export class AuthService {
       }
     
       async refreshTokens(userId: number, rt: string) {
-        const user = await this.prisma.user.findUnique({
+        const user = await this.prisma.user.findFirst({
           where: {
             id: userId,
           },
@@ -156,7 +157,7 @@ export class AuthService {
         const tokens = await this.getTokens(user.id, user.email);
         await this.updateRtHash(user.id, tokens.refresh_token);
     
-        return tokens;
+        return {tokens, user};
       }
 
       async updateRtHash(userId: number, rt: string) {

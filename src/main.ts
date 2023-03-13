@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import * as session from 'express-session';
 import * as passport from 'passport';
+import * as cookieParser from 'cookie-parser';
 
 import { AppModule } from './app.module';
 
@@ -17,6 +18,7 @@ async function bootstrap() {
             },
         }),
     );
+    app.use(cookieParser());
     app.use(passport.initialize());
     app.use(passport.session());
 
@@ -32,7 +34,10 @@ async function bootstrap() {
         .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api', app, document);
-    app.enableCors();
+    app.enableCors({
+        origin: 'http://localhost:3001',
+        credentials: true,
+      });
     await app.listen(3000);
 }
 bootstrap();
